@@ -151,4 +151,41 @@ if(commit(function(){r.msgs.push({t:a,me:false,at:Date.now()})})&&view.chat==='a
 function find(a,id){return a.filter(function(x){return x.id===id})[0]}
 var act={
 tab:function(id){view.tab=id;view.chat=null;render();$('main').scrollTop=0},open:function(id){view.chat=id;render()},back:function(){stopRec(false);view.chat=null;render()},
-re
+record:function(){if(!window.Android){toast('Rekam suara hanya bisa di aplikasi Android');return}var r=window.Android.startRec();
+if(r==='izin'){toast('Izinkan mikrofon, lalu tekan VN lagi');return}if(r!=='ok'){toast('Mikrofon tidak bisa dipakai');return}
+rec={at:Date.now(),timer:setInterval(function(){var n=Math.round((Date.now()-rec.at)/1000),e=$('#sec');if(e)e.textContent=n;if(n>=120)stopRec(true)},500)};render()},
+recsend:function(){stopRec(true)},reccancel:function(){stopRec(false)},
+adduser:function(u){var id='c'+Date.now();if(commit(function(){S.chats.push({id:id,name:u,u:u,msgs:[]})})){view.chat=id;render()}},
+newvideo:function(){var f=$('#file');f.accept='video/*';f.value='';f.onchange=function(){var x=f.files[0];if(!x)return;if(x.size>50*1048576){toast('Video lebih dari 50 MB');return}
+modal('Keterangan video (boleh kosong)',function(t){db('readwrite',function(o){o.put({id:'v'+Date.now(),blob:x,text:t,liked:false,at:Date.now()})},function(){view.tab='video';loadVids()})},true)};f.click()},
+playpause:function(id){var v=document.querySelector('video[data-id="'+id+'"]');if(v.paused)v.play();else v.pause()},
+sound:function(){muted=!muted;document.querySelectorAll('video').forEach(function(v){v.muted=muted});document.querySelectorAll('[data-a=sound]').forEach(function(b){b.textContent=muted?'Suara mati':'Suara aktif'})},
+vlike:function(id){var v=find(vids,id);v.liked=!v.liked;db('readwrite',function(o){o.put(v)},function(){var b=document.querySelector('[data-a=vlike][data-id="'+id+'"]');if(b){b.className=v.liked?'liked':'';b.innerHTML=v.liked?'&#9829; Disukai':'&#9825; Suka'}})},
+vdel:function(id){if(confirm('Hapus video ini?'))db('readwrite',function(o){o.delete(id)},function(){URL.revokeObjectURL(vurls[id]);delete vurls[id];loadVids()})},
+newchat:function(){modal('Nama obrolan baru',function(n){var id='c'+Date.now();commit(function(){S.chats.push({id:id,name:n.slice(0,30),u:slug(n),msgs:[]})});view.chat=id;render()})},
+delchat:function(){if(confirm('Hapus obrolan ini?')){commit(function(){S.chats=S.chats.filter(function(c){return c.id!==view.chat})});view.chat=null;render()}},
+sendphoto:function(){pick(function(img){send({img:img})})},
+newpost:function(){pick(function(img){modal('Keterangan foto (boleh kosong)',function(t){commit(function(){S.posts.unshift({id:'p'+Date.now(),img:img,text:t,liked:false,comments:[],at:Date.now()})});view.tab='feed';render()},true)})},
+newstory:function(){pick(function(img){commit(function(){S.stories.push({id:'s'+Date.now(),img:img,at:Date.now()})});render()})},
+story:function(id){var s=find(S.stories,id);if(!s)return;storyOpen=id;var e=$('#story');e.innerHTML='<div><b>'+esc(S.me.name)+' &middot; '+time(s.at)+'</b><button data-a="closestory">Tutup</button></div><img alt="Cerita" src="'+s.img+'"><div><span>Hilang setelah 24 jam</span><button data-a="delstory">Hapus</button></div>';e.hidden=false},
+closestory:function(){$('#story').hidden=true;storyOpen=null},
+delstory:function(){commit(function(){S.stories=S.stories.filter(function(s){return s.id!==storyOpen})});act.closestory();render()},
+like:function(id){commit(function(){var p=find(S.posts,id);p.liked=!p.liked});keep()},
+delpost:function(id){if(confirm('Hapus foto ini?')){commit(function(){S.posts=S.posts.filter(function(p){return p.id!==id})});keep()}},
+avatar:function(){pick(function(img){commit(function(){S.me.photo=img});render()})},
+dark:function(){commit(function(){S.dark=!S.dark});render()},
+reset:function(){if(confirm('Hapus semua obrolan, foto, dan profil?')){localStorage.removeItem(KEY);db('readwrite',function(o){o.clear()},loadVids);S=seed();migrate();view={tab:'chat',chat:null};render()}}};
+function keep(){var y=$('main').scrollTop;render();$('main').scrollTop=y}
+function modal(label,cb,allowEmpty){var e=$('#story');e.innerHTML='<form data-f="modal" style="padding:24px;display:flex;flex-direction:column;gap:12px"><label for="mi">'+esc(label)+'</label><input type="text" id="mi" maxlength="200" style="color:#000;background:#fff"><button class="btn">Simpan</button><button type="button" class="ghost" data-a="closestory">Batal</button></form>';e.hidden=false;e.cb=cb;e.allowEmpty=allowEmpty;$('#mi').focus()}
+document.addEventListener('click',function(ev){var b=ev.target.closest('[data-a]');if(b)act[b.getAttribute('data-a')](b.getAttribute('data-id'))});
+document.addEventListener('submit',function(ev){ev.preventDefault();var f=ev.target,k=f.getAttribute('data-f'),i=f.querySelector('input'),v=i.value.trim();
+if(k==='send'){if(v&&send({t:v}))$('#msg').focus()}
+else if(k==='comment'){if(v){commit(function(){find(S.posts,f.getAttribute('data-id')).comments.push(v)});keep()}}
+else if(k==='profile'){var n=$('#name').value.trim();if(!n){toast('Nama tidak boleh kosong');return}var bio=$('#bio').value.trim(),u=$('#user').value.trim().toLowerCase().replace(/^@/,'');if(!/^[a-z0-9._]{3,20}$/.test(u)){toast('Username 3-20 karakter: huruf, angka, titik, garis bawah');return}if(commit(function(){S.me.user=u;S.me.name=n;S.me.bio=bio})){render();toast('Profil disimpan')}}
+else if(k==='modal'){var e=$('#story');if(!v&&!e.allowEmpty)return;e.hidden=true;e.cb(v)}});
+document.addEventListener('visibilitychange',function(){if(document.hidden){stopRec(false);document.querySelectorAll('video').forEach(function(v){v.pause()})}});
+window.goBack=function(){if(!$('#story').hidden){act.closestory();return true}if(view.chat){act.back();return true}if(view.tab!=='chat'){act.tab('chat');return true}return false};
+buildNav();render();loadVids();
+</script>
+<script src="config.js"></script>
+<script src="online.js"></script></body></html>
