@@ -1,0 +1,29 @@
+name: Buat APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pasang alat Android
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y aapt apksigner zipalign dalvik-exchange android-sdk-platform-23
+      - name: Build dan tanda tangani
+        env:
+          KS_BASE64: ${{ secrets.KS_BASE64 }}
+          KS_PASS: ${{ secrets.KS_PASS }}
+        run: |
+          if [ -z "$KS_BASE64" ] || [ -z "$KS_PASS" ]; then echo "Secret KS_BASE64 atau KS_PASS belum diisi"; exit 1; fi
+          echo "$KS_BASE64" | base64 -d > sapaloka.keystore
+          VERSION_CODE=$((100 + GITHUB_RUN_NUMBER)) sh build.sh
+          rm sapaloka.keystore
+      - name: Terbitkan unduhan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "v$((100 + GITHUB_RUN_NUMBER))" Sapaloka.apk --title "Sapaloka build $((100 + GITHUB_RUN_NUMBER))" --notes "Unduh Sapaloka.apk lalu instal."
