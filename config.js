@@ -2,5 +2,5 @@
 // Pakai Publishable key (atau anon key). JANGAN pernah memakai secret / service_role key.
 var SAPALOKA_CONFIG = {
   url: '',
-  key: ''
+  key: 'sb_publishable_0Yw4HiCY_5o6MKcLSr60jQ_xJHk8n2O'
 };
