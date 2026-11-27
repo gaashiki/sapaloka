@@ -252,4 +252,3 @@ document.addEventListener('submit', function (ev) {
 setInterval(poll, 4000);
 view.peer = null; render(); if (session && !problem) start();
 })();
-        
